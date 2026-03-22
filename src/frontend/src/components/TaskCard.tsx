@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { Task } from "../backend.d";
 import { haptic } from "../utils/haptics";
 
@@ -10,7 +10,7 @@ interface Props {
   "data-ocid"?: string;
 }
 
-export default function TaskCard({
+export default memo(function TaskCard({
   task,
   onComplete,
   onEdit,
@@ -157,4 +157,4 @@ export default function TaskCard({
       </div>
     </div>
   );
-}
+});

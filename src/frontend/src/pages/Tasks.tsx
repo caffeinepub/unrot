@@ -220,7 +220,6 @@ export default function Tasks({ actor, onRefreshProfile }: Props) {
       )}
       {showTaskModal && (
         <TaskModal
-          actor={actor}
           task={editTask}
           onClose={() => {
             setShowTaskModal(false);

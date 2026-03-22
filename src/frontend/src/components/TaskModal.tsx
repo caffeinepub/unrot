@@ -1,36 +1,35 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { Task, backendInterface } from "../backend.d";
+import type { Task } from "../backend.d";
+import { useActor } from "../hooks/useActor";
 import { haptic } from "../utils/haptics";
 
 interface Props {
-  actor: backendInterface | null;
   task: Task | null;
   onClose: () => void;
   onSave: () => void;
 }
 
-type TaskType = "pushups" | "situps" | "custom";
+type TaskType = "pushups" | "custom";
 type RepeatOption = "daily" | "weekly" | "never" | "custom";
 
-export default function TaskModal({ actor, task, onClose, onSave }: Props) {
+export default function TaskModal({ task, onClose, onSave }: Props) {
+  const { actor, isFetching } = useActor();
   const [title, setTitle] = useState("");
   const [type, setType] = useState<TaskType>("custom");
-  const [reps, setReps] = useState("10");
+  const [description, setDescription] = useState("");
   const [coins, setCoins] = useState("5");
   const [repeat, setRepeat] = useState<RepeatOption>("daily");
-  const [customDesc, setCustomDesc] = useState("");
-  const [photoProof, setPhotoProof] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (task) {
       setTitle(task.title);
-      setType(task.taskType.__kind__ as TaskType);
-      setReps(task.targetReps.toString());
+      const kind = task.taskType.__kind__;
+      setType(kind === "pushups" ? "pushups" : "custom");
       setCoins(task.coinReward.toString());
-      if (task.taskType.__kind__ === "custom")
-        setCustomDesc(
+      if (kind === "custom")
+        setDescription(
           (task.taskType as { __kind__: "custom"; custom: string }).custom,
         );
       const rk = task.repeatOption.__kind__;
@@ -38,28 +37,10 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
     }
   }, [task]);
 
-  const handleSuggestion = (preset: "pushups" | "situps") => {
-    haptic();
-    if (preset === "pushups") {
-      setTitle("5 Push-ups");
-      setType("pushups");
-      setReps("5");
-      setCoins("5");
-      setRepeat("daily");
-    } else {
-      setTitle("20 Sit-ups");
-      setType("situps");
-      setReps("20");
-      setCoins("10");
-      setRepeat("daily");
-    }
-  };
-
   const buildTaskType = () => {
     if (type === "pushups")
       return { __kind__: "pushups" as const, pushups: null };
-    if (type === "situps") return { __kind__: "situps" as const, situps: null };
-    return { __kind__: "custom" as const, custom: customDesc || title };
+    return { __kind__: "custom" as const, custom: description || title };
   };
 
   const buildRepeatOption = () => {
@@ -89,7 +70,7 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
           task.id,
           title.trim(),
           tt,
-          BigInt(Number.parseInt(reps) || 0),
+          task.targetReps,
           BigInt(Number.parseInt(coins) || 1),
           ro,
           false,
@@ -100,7 +81,7 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
         await actor.addTask(
           title.trim(),
           tt,
-          BigInt(Number.parseInt(reps) || 0),
+          BigInt(0),
           BigInt(Number.parseInt(coins) || 1),
           ro,
           false,
@@ -115,6 +96,15 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
     }
   };
 
+  const scrollToInput = (e: React.FocusEvent<HTMLElement>) => {
+    const el = e.currentTarget;
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
+  };
+
+  const isDisabled = saving || isFetching;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
@@ -124,12 +114,38 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
     >
       <div
         data-ocid="tasks.modal"
-        className="w-full max-w-md rounded-t-3xl px-5 pt-5 pb-8 max-h-[88dvh] overflow-y-auto animate-slide-up glass-modal"
+        className="w-full max-w-md rounded-t-3xl px-4 pt-4 max-h-[85dvh] overflow-y-auto"
+        style={{
+          background: "var(--unrot-card)",
+          border: "1px solid var(--unrot-border)",
+        }}
       >
+        {/* Handle bar */}
+        <div className="flex justify-center mb-3">
+          <div
+            className="w-10 h-1 rounded-full"
+            style={{ background: "var(--unrot-border)" }}
+          />
+        </div>
+
+        {/* Connecting banner */}
+        {isFetching && (
+          <div
+            className="flex items-center justify-center gap-2 rounded-xl px-3 py-2 mb-3 text-xs font-semibold"
+            style={{
+              background: "rgba(46,204,113,0.1)",
+              border: "1px solid rgba(46,204,113,0.25)",
+              color: "var(--unrot-green)",
+            }}
+          >
+            <span className="animate-spin">⟳</span> Connecting...
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2
-            className="text-xl font-bold"
+            className="text-lg font-bold"
             style={{ color: "var(--unrot-text)" }}
           >
             {task ? "Edit Task" : "New Task"}
@@ -138,103 +154,27 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
             type="button"
             data-ocid="tasks.close_button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
+            className="w-9 h-9 rounded-full flex items-center justify-center"
             style={{
-              background: "rgba(255,255,255,0.1)",
-              color: "var(--unrot-text)",
+              background: "rgba(255,255,255,0.08)",
+              color: "var(--unrot-muted)",
             }}
           >
             ✕
           </button>
         </div>
 
-        {/* Photo Proof toggle */}
         <div
-          className="flex items-center justify-between p-3 rounded-xl mb-4"
+          className="flex flex-col gap-3"
           style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
           }}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-lg">📷</span>
-            <div>
-              <p
-                className="text-sm font-semibold"
-                style={{ color: "var(--unrot-text)" }}
-              >
-                Photo Proof
-              </p>
-              <p className="text-xs" style={{ color: "var(--unrot-muted)" }}>
-                Require a photo to verify
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            data-ocid="tasks.toggle"
-            onClick={() => {
-              haptic();
-              setPhotoProof(!photoProof);
-            }}
-            className="relative w-12 h-6 rounded-full transition-all"
-            style={{
-              background: photoProof
-                ? "var(--unrot-green)"
-                : "var(--unrot-border)",
-            }}
-          >
-            <span
-              className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
-              style={{ left: photoProof ? "26px" : "2px" }}
-            />
-          </button>
-        </div>
-
-        {/* Suggestions (only for new tasks) */}
-        {!task && (
-          <div className="mb-4">
-            <p
-              className="text-xs font-semibold uppercase tracking-wide mb-2"
-              style={{ color: "var(--unrot-muted)" }}
-            >
-              Suggestions
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => handleSuggestion("pushups")}
-                className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
-                style={{
-                  background: "rgba(46,204,113,0.12)",
-                  border: "1px solid rgba(46,204,113,0.25)",
-                  color: "var(--unrot-green)",
-                }}
-              >
-                💪 Push-ups
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSuggestion("situps")}
-                className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
-                style={{
-                  background: "rgba(46,204,113,0.12)",
-                  border: "1px solid rgba(46,204,113,0.25)",
-                  color: "var(--unrot-green)",
-                }}
-              >
-                🏋️ Sit-ups
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-4">
           {/* Title */}
           <div>
             <label
               htmlFor="task-title"
-              className="text-xs font-semibold uppercase tracking-wide mb-1 block"
+              className="text-xs font-semibold uppercase tracking-wider mb-1 block"
               style={{ color: "var(--unrot-muted)" }}
             >
               Title
@@ -244,8 +184,9 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
               data-ocid="tasks.input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Task title"
-              className="w-full px-3 py-2.5 rounded-xl text-sm"
+              onFocus={scrollToInput}
+              placeholder="What's the task?"
+              className="w-full px-4 py-2.5 rounded-2xl text-sm"
               style={{
                 background: "rgba(255,255,255,0.06)",
                 border: "1px solid rgba(255,255,255,0.1)",
@@ -255,118 +196,32 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
             />
           </div>
 
-          {/* Type */}
-          <div>
-            <p
-              className="text-xs font-semibold uppercase tracking-wide mb-2 block"
-              style={{ color: "var(--unrot-muted)" }}
-            >
-              Type
-            </p>
-            <div className="flex gap-2">
-              {(
-                [
-                  ["pushups", "💪 Push-ups"],
-                  ["situps", "🏋️ Sit-ups"],
-                  ["custom", "✅ Custom"],
-                ] as [TaskType, string][]
-              ).map(([t, label]) => (
-                <button
-                  type="button"
-                  key={t}
-                  data-ocid={`tasks.${t}.toggle`}
-                  onClick={() => {
-                    haptic();
-                    setType(t);
-                  }}
-                  className="flex-1 py-2 text-xs rounded-xl font-semibold"
-                  style={{
-                    background:
-                      type === t
-                        ? "var(--unrot-green)"
-                        : "rgba(255,255,255,0.06)",
-                    color: type === t ? "#fff" : "var(--unrot-muted)",
-                    border: "1px solid",
-                    borderColor:
-                      type === t
-                        ? "var(--unrot-green)"
-                        : "rgba(255,255,255,0.1)",
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {(type === "pushups" || type === "situps") && (
-            <div>
-              <label
-                htmlFor="task-reps"
-                className="text-xs font-semibold uppercase tracking-wide mb-1 block"
-                style={{ color: "var(--unrot-muted)" }}
-              >
-                Target Reps
-              </label>
-              <input
-                id="task-reps"
-                type="number"
-                value={reps}
-                onChange={(e) => setReps(e.target.value)}
-                min="1"
-                className="w-full px-3 py-2.5 rounded-xl text-sm"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "var(--unrot-text)",
-                  outline: "none",
-                }}
-              />
-            </div>
-          )}
-
-          {type === "custom" && (
-            <div>
-              <label
-                htmlFor="task-desc"
-                className="text-xs font-semibold uppercase tracking-wide mb-1 block"
-                style={{ color: "var(--unrot-muted)" }}
-              >
-                Description (optional)
-              </label>
-              <input
-                id="task-desc"
-                value={customDesc}
-                onChange={(e) => setCustomDesc(e.target.value)}
-                placeholder="What does this task involve?"
-                className="w-full px-3 py-2.5 rounded-xl text-sm"
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "var(--unrot-text)",
-                  outline: "none",
-                }}
-              />
-            </div>
-          )}
-
-          {/* Coins */}
+          {/* Description */}
           <div>
             <label
-              htmlFor="task-coins"
-              className="text-xs font-semibold uppercase tracking-wide mb-1 block"
+              htmlFor="task-desc"
+              className="text-xs font-semibold uppercase tracking-wider mb-1 block"
               style={{ color: "var(--unrot-muted)" }}
             >
-              Coin Reward
+              Description{" "}
+              <span
+                style={{
+                  color: "var(--unrot-dim)",
+                  textTransform: "none",
+                  fontSize: "0.7rem",
+                }}
+              >
+                (optional)
+              </span>
             </label>
-            <input
-              id="task-coins"
-              data-ocid="tasks.coins.input"
-              type="number"
-              value={coins}
-              onChange={(e) => setCoins(e.target.value)}
-              min="1"
-              className="w-full px-3 py-2.5 rounded-xl text-sm"
+            <textarea
+              id="task-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onFocus={scrollToInput}
+              placeholder="More details..."
+              rows={2}
+              className="w-full px-4 py-2.5 rounded-2xl text-sm resize-none"
               style={{
                 background: "rgba(255,255,255,0.06)",
                 border: "1px solid rgba(255,255,255,0.1)",
@@ -376,15 +231,89 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
             />
           </div>
 
-          {/* Repeat */}
+          {/* Type + Coin Reward side by side */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Type */}
+            <div>
+              <p
+                className="text-xs font-semibold uppercase tracking-wider mb-1 block"
+                style={{ color: "var(--unrot-muted)" }}
+              >
+                Type
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {(
+                  [
+                    ["custom", "✅", "Custom"],
+                    ["pushups", "💪", "Push-ups"],
+                  ] as [TaskType, string, string][]
+                ).map(([t, icon, label]) => (
+                  <button
+                    type="button"
+                    key={t}
+                    data-ocid={`tasks.${t}.toggle`}
+                    onClick={() => {
+                      haptic();
+                      setType(t);
+                    }}
+                    className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-semibold text-xs transition-all active:scale-95"
+                    style={{
+                      background:
+                        type === t
+                          ? "var(--unrot-green)"
+                          : "rgba(255,255,255,0.06)",
+                      color: type === t ? "#fff" : "var(--unrot-muted)",
+                      border: "1px solid",
+                      borderColor:
+                        type === t
+                          ? "var(--unrot-green)"
+                          : "rgba(255,255,255,0.1)",
+                    }}
+                  >
+                    <span>{icon}</span>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Coin Reward */}
+            <div>
+              <label
+                htmlFor="task-coins"
+                className="text-xs font-semibold uppercase tracking-wider mb-1 block"
+                style={{ color: "var(--unrot-muted)" }}
+              >
+                Coins 🪙
+              </label>
+              <input
+                id="task-coins"
+                data-ocid="tasks.coins.input"
+                type="number"
+                value={coins}
+                onChange={(e) => setCoins(e.target.value)}
+                onFocus={scrollToInput}
+                min="1"
+                className="w-full px-4 py-2.5 rounded-2xl text-sm"
+                style={{
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "var(--unrot-text)",
+                  outline: "none",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Repeat - 4 in one row */}
           <div>
             <p
-              className="text-xs font-semibold uppercase tracking-wide mb-2 block"
+              className="text-xs font-semibold uppercase tracking-wider mb-1 block"
               style={{ color: "var(--unrot-muted)" }}
             >
               Repeat
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-4 gap-1.5">
               {(
                 [
                   ["daily", "Daily"],
@@ -400,7 +329,7 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
                     haptic();
                     setRepeat(r);
                   }}
-                  className="py-2 text-xs rounded-xl font-semibold"
+                  className="py-2 text-xs rounded-xl font-semibold transition-all active:scale-95"
                   style={{
                     background:
                       repeat === r
@@ -419,30 +348,38 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
               ))}
             </div>
           </div>
-        </div>
 
-        <div className="flex gap-3 mt-6">
-          <button
-            type="button"
-            data-ocid="tasks.cancel_button"
-            onClick={onClose}
-            className="flex-1 py-3 rounded-2xl font-semibold text-sm"
-            style={{
-              background: "rgba(255,255,255,0.08)",
-              color: "var(--unrot-text)",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            data-ocid="tasks.submit_button"
-            onClick={save}
-            disabled={!title.trim() || saving}
-            className="flex-1 py-3 rounded-2xl font-semibold text-sm unrot-btn-green"
-          >
-            {saving ? "Saving..." : task ? "Update" : "Create"}
-          </button>
+          {/* Action buttons */}
+          <div className="flex gap-3 mt-2">
+            <button
+              type="button"
+              data-ocid="tasks.cancel_button"
+              onClick={onClose}
+              className="flex-1 py-3 rounded-2xl font-semibold text-sm"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                color: "var(--unrot-text)",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              data-ocid="tasks.submit_button"
+              onClick={save}
+              disabled={!title.trim() || isDisabled}
+              className="flex-1 py-3 rounded-2xl font-semibold text-sm unrot-btn-green"
+              style={{ opacity: !title.trim() || isDisabled ? 0.5 : 1 }}
+            >
+              {isFetching
+                ? "Connecting..."
+                : saving
+                  ? "Saving..."
+                  : task
+                    ? "Update"
+                    : "Create"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

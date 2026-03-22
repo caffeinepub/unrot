@@ -10,6 +10,12 @@ import Dashboard from "./pages/Dashboard";
 import LoginPage from "./pages/LoginPage";
 import Settings from "./pages/Settings";
 
+// Apply persisted font size immediately on load
+const savedFontSize = localStorage.getItem("unrot-font-size");
+if (savedFontSize) {
+  document.documentElement.style.fontSize = `${savedFontSize}%`;
+}
+
 export type Tab = "dashboard" | "analyze" | "settings";
 
 export default function App() {
@@ -101,11 +107,15 @@ export default function App() {
       {showOnboarding && <OnboardingModal onDone={handleOnboardingDone} />}
 
       <main className="flex-1 pb-20 overflow-y-auto">
-        {activeTab === "dashboard" && <Dashboard {...tabProps} />}
-        {activeTab === "analyze" && <Analyze {...tabProps} />}
-        {activeTab === "settings" && (
+        <div style={{ display: activeTab === "dashboard" ? "block" : "none" }}>
+          <Dashboard {...tabProps} />
+        </div>
+        <div style={{ display: activeTab === "analyze" ? "block" : "none" }}>
+          <Analyze {...tabProps} />
+        </div>
+        <div style={{ display: activeTab === "settings" ? "block" : "none" }}>
           <Settings {...tabProps} theme={theme} onThemeChange={setTheme} />
-        )}
+        </div>
       </main>
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />

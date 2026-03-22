@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Task, UserProfile, backendInterface } from "../backend.d";
 import { AnimatedCoinBalance } from "../components/AnimatedCoinBalance";
-import CameraExerciseModal from "../components/CameraExerciseModal";
+import PushupCounterModal from "../components/PushupCounterModal";
 import RedeemModal from "../components/RedeemModal";
 import TaskCard from "../components/TaskCard";
 import TaskModal from "../components/TaskModal";
@@ -38,7 +38,6 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
     }
   }, [actor]);
 
-  // Auto-add pushups and situps if they don't exist yet
   const autoAddDefaultTasks = useCallback(
     async (existingTasks: Task[]) => {
       if (!actor || didAutoAdd.current) return;
@@ -46,10 +45,6 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
       const hasPushups = existingTasks.some(
         (t) => t.taskType.__kind__ === "pushups",
       );
-      const hasSitups = existingTasks.some(
-        (t) => t.taskType.__kind__ === "situps",
-      );
-      let changed = false;
       try {
         if (!hasPushups) {
           await actor.addTask(
@@ -60,24 +55,10 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
             { __kind__: "daily", daily: null },
             false,
           );
-          changed = true;
-        }
-        if (!hasSitups) {
-          await actor.addTask(
-            "20 Sit-ups",
-            { __kind__: "situps", situps: null },
-            BigInt(20),
-            BigInt(10),
-            { __kind__: "daily", daily: null },
-            false,
-          );
-          changed = true;
-        }
-        if (changed) {
           await loadTasks();
         }
       } catch {
-        // silently ignore auto-add failures
+        // silently ignore
       }
     },
     [actor, loadTasks],
@@ -89,40 +70,56 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
     });
   }, [loadTasks, autoAddDefaultTasks]);
 
-  const handleComplete = (task: Task) => {
-    haptic();
-    if (
-      task.taskType.__kind__ === "pushups" ||
-      task.taskType.__kind__ === "situps"
-    ) {
-      setExerciseTask(task);
-    } else {
-      completeTask(task.id);
-    }
-  };
+  const completeTask = useCallback(
+    async (taskId: bigint) => {
+      if (!actor) return;
+      // Optimistic update
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId ? { ...t, completedAt: BigInt(Date.now()) } : t,
+        ),
+      );
+      try {
+        await actor.completeTask(taskId);
+        toast.success("Task completed! Coins earned 🪙", { duration: 2000 });
+        await Promise.all([loadTasks(), onRefreshProfile()]);
+      } catch (e: unknown) {
+        // Revert on failure
+        await loadTasks();
+        toast.error(e instanceof Error ? e.message : "Failed to complete task");
+      }
+    },
+    [actor, loadTasks, onRefreshProfile],
+  );
 
-  const completeTask = async (taskId: bigint) => {
-    if (!actor) return;
-    try {
-      await actor.completeTask(taskId);
-      toast.success("Task completed! Coins earned 🪙", { duration: 2000 });
-      await Promise.all([loadTasks(), onRefreshProfile()]);
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Failed to complete task");
-    }
-  };
+  const handleComplete = useCallback(
+    (task: Task) => {
+      haptic();
+      if (task.taskType.__kind__ === "pushups") {
+        setExerciseTask(task);
+      } else {
+        completeTask(task.id);
+      }
+    },
+    [completeTask],
+  );
 
-  const handleDelete = async (taskId: bigint) => {
-    if (!actor) return;
-    haptic();
-    try {
-      await actor.deleteTask(taskId);
-      toast.success("Task deleted");
-      await loadTasks();
-    } catch {
-      toast.error("Failed to delete task");
-    }
-  };
+  const handleDelete = useCallback(
+    async (taskId: bigint) => {
+      if (!actor) return;
+      haptic();
+      // Optimistic update
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      try {
+        await actor.deleteTask(taskId);
+        toast.success("Task deleted");
+      } catch {
+        await loadTasks(); // revert
+        toast.error("Failed to delete task");
+      }
+    },
+    [actor, loadTasks],
+  );
 
   const activeTasks = tasks.filter((t) => t.isActive && !t.completedAt);
   const completedTasks = tasks.filter((t) => t.completedAt);
@@ -133,7 +130,7 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
       {/* Top header row */}
       <div className="flex items-center justify-between mb-4">
         <h1
-          className="text-2xl font-bold"
+          className="text-3xl font-bold"
           style={{ color: "var(--unrot-text)" }}
         >
           Dashboard
@@ -146,11 +143,11 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
             setEditTask(null);
             setShowTaskModal(true);
           }}
-          className="w-10 h-10 flex items-center justify-center rounded-full font-light text-2xl transition-all active:scale-95"
+          className="w-11 h-11 flex items-center justify-center rounded-full font-light text-2xl transition-all active:scale-90"
           style={{
             background: "var(--unrot-green)",
             color: "#fff",
-            boxShadow: "0 2px 12px rgba(46,204,113,0.35)",
+            boxShadow: "0 2px 16px rgba(46,204,113,0.4)",
           }}
         >
           +
@@ -159,14 +156,14 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
 
       {/* Balance Card */}
       <div
-        className="relative rounded-3xl p-5 mb-4 overflow-hidden"
+        className="relative rounded-3xl p-4 mb-4 overflow-hidden"
         style={{
           background: "linear-gradient(135deg, #1A212B 0%, #1D2631 100%)",
           border: "1px solid rgba(46,204,113,0.15)",
         }}
       >
         <p
-          className="text-xs font-semibold tracking-widest uppercase mb-1"
+          className="text-xs font-semibold tracking-widest uppercase mb-2"
           style={{ color: "var(--unrot-muted)" }}
         >
           Unrot Coins
@@ -182,7 +179,7 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
               haptic();
               setShowRedeemModal(true);
             }}
-            className="px-4 py-2 rounded-2xl font-bold text-sm transition-all active:scale-95"
+            className="px-5 py-2.5 rounded-2xl font-bold text-sm transition-all active:scale-95"
             style={{
               background: "var(--unrot-green)",
               color: "#fff",
@@ -192,7 +189,7 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
             Redeem
           </button>
         </div>
-        <p className="text-xs mt-1" style={{ color: "var(--unrot-muted)" }}>
+        <p className="text-xs mt-2" style={{ color: "var(--unrot-muted)" }}>
           Earn screen time by moving!
         </p>
       </div>
@@ -200,13 +197,13 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
       {/* Debt warnings */}
       {balance < 0 && balance > -15 && (
         <div
-          className="rounded-2xl p-3 mb-3 flex items-center gap-2"
+          className="rounded-2xl p-3 mb-3 flex items-center gap-3"
           style={{
             background: "rgba(224,107,90,0.12)",
             border: "1px solid rgba(224,107,90,0.25)",
           }}
         >
-          <span>⚠️</span>
+          <span className="text-xl">⚠️</span>
           <p className="text-sm font-medium" style={{ color: "#E06B5A" }}>
             You're in debt! Complete tasks to earn coins.
           </p>
@@ -214,13 +211,13 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
       )}
       {balance <= -15 && (
         <div
-          className="rounded-2xl p-3 mb-3 flex items-center gap-2"
+          className="rounded-2xl p-3 mb-3 flex items-center gap-3"
           style={{
             background: "rgba(224,107,90,0.15)",
             border: "1px solid rgba(224,107,90,0.4)",
           }}
         >
-          <span>🚫</span>
+          <span className="text-xl">🚫</span>
           <p className="text-sm font-medium" style={{ color: "#E06B5A" }}>
             Debt limit reached (-15)! Resets at midnight.
           </p>
@@ -228,10 +225,10 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
       )}
 
       {/* Active Tasks */}
-      <div className="mb-4">
+      <div className="mb-3">
         <div className="flex items-center gap-2 mb-3">
           <h2
-            className="text-base font-bold"
+            className="text-lg font-bold"
             style={{ color: "var(--unrot-text)" }}
           >
             Active Tasks
@@ -250,7 +247,7 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
         </div>
 
         {loading ? (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             {[1, 2].map((i) => (
               <div
                 key={i}
@@ -268,7 +265,7 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
               border: "1px solid rgba(255,255,255,0.07)",
             }}
           >
-            <p className="text-3xl mb-2">🎯</p>
+            <p className="text-4xl mb-2">🎯</p>
             <p className="text-sm" style={{ color: "var(--unrot-muted)" }}>
               No active tasks. Tap + to start earning!
             </p>
@@ -294,7 +291,7 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
 
       {/* Completed Tasks */}
       {completedTasks.length > 0 && (
-        <div className="mb-4">
+        <div className="mb-3">
           <button
             type="button"
             onClick={() => setShowCompleted(!showCompleted)}
@@ -322,12 +319,8 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
                     opacity: 0.6,
                   }}
                 >
-                  <span className="text-xl">
-                    {task.taskType.__kind__ === "pushups"
-                      ? "💪"
-                      : task.taskType.__kind__ === "situps"
-                        ? "🏋️"
-                        : "✅"}
+                  <span className="text-2xl">
+                    {task.taskType.__kind__ === "pushups" ? "💪" : "✅"}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p
@@ -355,7 +348,7 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
       )}
 
       {exerciseTask && (
-        <CameraExerciseModal
+        <PushupCounterModal
           task={exerciseTask}
           onComplete={() => {
             setExerciseTask(null);
@@ -367,7 +360,6 @@ export default function Dashboard({ actor, profile, onRefreshProfile }: Props) {
 
       {showTaskModal && (
         <TaskModal
-          actor={actor}
           task={editTask}
           onClose={() => {
             setShowTaskModal(false);
