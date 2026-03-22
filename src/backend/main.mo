@@ -494,8 +494,8 @@ actor {
       case (null) { Runtime.trap("Reward not found") };
       case (?reward) {
         let newBalance = profile.coinBalance - reward.coinCost;
-        if (newBalance < -20) {
-          Runtime.trap("Insufficient balance: would go below -20");
+        if (newBalance < -15) {
+          Runtime.trap("Insufficient balance: would go below -15");
         };
 
         let updatedProfile = {
@@ -532,8 +532,8 @@ actor {
     let coinCost = if (minutes == 15) { 15 } else if (minutes == 60) { 60 } else { minutes };
 
     let newBalance = profile.coinBalance - coinCost;
-    if (newBalance < -20) {
-      Runtime.trap("Insufficient balance: would go below -20");
+    if (newBalance < -15) {
+      Runtime.trap("Insufficient balance: would go below -15");
     };
 
     let updatedProfile = {

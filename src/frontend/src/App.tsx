@@ -8,18 +8,9 @@ import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import Analyze from "./pages/Analyze";
 import Dashboard from "./pages/Dashboard";
 import LoginPage from "./pages/LoginPage";
-import Redeem from "./pages/Redeem";
-import Rewards from "./pages/Rewards";
 import Settings from "./pages/Settings";
-import Tasks from "./pages/Tasks";
 
-export type Tab =
-  | "dashboard"
-  | "tasks"
-  | "redeem"
-  | "rewards"
-  | "analyze"
-  | "settings";
+export type Tab = "dashboard" | "analyze" | "settings";
 
 export default function App() {
   const { identity, isInitializing } = useInternetIdentity();
@@ -111,9 +102,6 @@ export default function App() {
 
       <main className="flex-1 pb-20 overflow-y-auto">
         {activeTab === "dashboard" && <Dashboard {...tabProps} />}
-        {activeTab === "tasks" && <Tasks {...tabProps} />}
-        {activeTab === "redeem" && <Redeem {...tabProps} />}
-        {activeTab === "rewards" && <Rewards {...tabProps} />}
         {activeTab === "analyze" && <Analyze {...tabProps} />}
         {activeTab === "settings" && (
           <Settings {...tabProps} theme={theme} onThemeChange={setTheme} />

@@ -19,8 +19,8 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
   const [reps, setReps] = useState("10");
   const [coins, setCoins] = useState("5");
   const [repeat, setRepeat] = useState<RepeatOption>("daily");
-  const [priority, setPriority] = useState(false);
   const [customDesc, setCustomDesc] = useState("");
+  const [photoProof, setPhotoProof] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -29,7 +29,6 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
       setType(task.taskType.__kind__ as TaskType);
       setReps(task.targetReps.toString());
       setCoins(task.coinReward.toString());
-      setPriority(task.priority);
       if (task.taskType.__kind__ === "custom")
         setCustomDesc(
           (task.taskType as { __kind__: "custom"; custom: string }).custom,
@@ -39,9 +38,9 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
     }
   }, [task]);
 
-  const handlePreset = (preset: "pushups5" | "situps20") => {
+  const handleSuggestion = (preset: "pushups" | "situps") => {
     haptic();
-    if (preset === "pushups5") {
+    if (preset === "pushups") {
       setTitle("5 Push-ups");
       setType("pushups");
       setReps("5");
@@ -72,7 +71,14 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
   };
 
   const save = async () => {
-    if (!actor || !title.trim()) return;
+    if (!actor) {
+      toast.error("Not connected. Please refresh and try again.");
+      return;
+    }
+    if (!title.trim()) {
+      toast.error("Please enter a task title.");
+      return;
+    }
     haptic();
     setSaving(true);
     try {
@@ -86,7 +92,7 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
           BigInt(Number.parseInt(reps) || 0),
           BigInt(Number.parseInt(coins) || 1),
           ro,
-          priority,
+          false,
           task.isActive,
         );
         toast.success("Task updated!");
@@ -97,7 +103,7 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
           BigInt(Number.parseInt(reps) || 0),
           BigInt(Number.parseInt(coins) || 1),
           ro,
-          priority,
+          false,
         );
         toast.success("Task created!");
       }
@@ -113,15 +119,15 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
     >
       <div
-        className="w-full max-w-md rounded-t-3xl p-6 max-h-[90dvh] overflow-y-auto animate-slide-up"
-        style={{
-          background: "var(--unrot-card)",
-          border: "1px solid var(--unrot-border)",
-        }}
+        data-ocid="tasks.modal"
+        className="w-full max-w-md rounded-t-3xl px-5 pt-5 pb-8 max-h-[88dvh] overflow-y-auto animate-slide-up glass-modal"
       >
-        <div className="flex items-center justify-between mb-5">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
           <h2
             className="text-xl font-bold"
             style={{ color: "var(--unrot-text)" }}
@@ -130,10 +136,11 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
           </h2>
           <button
             type="button"
+            data-ocid="tasks.close_button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
             style={{
-              background: "var(--unrot-border)",
+              background: "rgba(255,255,255,0.1)",
               color: "var(--unrot-text)",
             }}
           >
@@ -141,36 +148,89 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
           </button>
         </div>
 
+        {/* Photo Proof toggle */}
+        <div
+          className="flex items-center justify-between p-3 rounded-xl mb-4"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📷</span>
+            <div>
+              <p
+                className="text-sm font-semibold"
+                style={{ color: "var(--unrot-text)" }}
+              >
+                Photo Proof
+              </p>
+              <p className="text-xs" style={{ color: "var(--unrot-muted)" }}>
+                Require a photo to verify
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            data-ocid="tasks.toggle"
+            onClick={() => {
+              haptic();
+              setPhotoProof(!photoProof);
+            }}
+            className="relative w-12 h-6 rounded-full transition-all"
+            style={{
+              background: photoProof
+                ? "var(--unrot-green)"
+                : "var(--unrot-border)",
+            }}
+          >
+            <span
+              className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
+              style={{ left: photoProof ? "26px" : "2px" }}
+            />
+          </button>
+        </div>
+
+        {/* Suggestions (only for new tasks) */}
         {!task && (
-          <div className="flex gap-2 mb-5">
-            <button
-              type="button"
-              onClick={() => handlePreset("pushups5")}
-              className="flex-1 py-2 text-xs rounded-xl font-semibold"
-              style={{
-                background: "var(--unrot-bg)",
-                border: "1px solid var(--unrot-border)",
-                color: "var(--unrot-text)",
-              }}
+          <div className="mb-4">
+            <p
+              className="text-xs font-semibold uppercase tracking-wide mb-2"
+              style={{ color: "var(--unrot-muted)" }}
             >
-              💪 5 Push-ups
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePreset("situps20")}
-              className="flex-1 py-2 text-xs rounded-xl font-semibold"
-              style={{
-                background: "var(--unrot-bg)",
-                border: "1px solid var(--unrot-border)",
-                color: "var(--unrot-text)",
-              }}
-            >
-              🏋️ 20 Sit-ups
-            </button>
+              Suggestions
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleSuggestion("pushups")}
+                className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
+                style={{
+                  background: "rgba(46,204,113,0.12)",
+                  border: "1px solid rgba(46,204,113,0.25)",
+                  color: "var(--unrot-green)",
+                }}
+              >
+                💪 Push-ups
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSuggestion("situps")}
+                className="text-xs px-3 py-1.5 rounded-full font-semibold transition-all"
+                style={{
+                  background: "rgba(46,204,113,0.12)",
+                  border: "1px solid rgba(46,204,113,0.25)",
+                  color: "var(--unrot-green)",
+                }}
+              >
+                🏋️ Sit-ups
+              </button>
+            </div>
           </div>
         )}
 
         <div className="flex flex-col gap-4">
+          {/* Title */}
           <div>
             <label
               htmlFor="task-title"
@@ -181,18 +241,21 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
             </label>
             <input
               id="task-title"
+              data-ocid="tasks.input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Task title"
               className="w-full px-3 py-2.5 rounded-xl text-sm"
               style={{
-                background: "var(--unrot-bg)",
-                border: "1px solid var(--unrot-border)",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
                 color: "var(--unrot-text)",
+                outline: "none",
               }}
             />
           </div>
 
+          {/* Type */}
           <div>
             <p
               className="text-xs font-semibold uppercase tracking-wide mb-2 block"
@@ -211,6 +274,7 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
                 <button
                   type="button"
                   key={t}
+                  data-ocid={`tasks.${t}.toggle`}
                   onClick={() => {
                     haptic();
                     setType(t);
@@ -218,9 +282,15 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
                   className="flex-1 py-2 text-xs rounded-xl font-semibold"
                   style={{
                     background:
-                      type === t ? "var(--unrot-green)" : "var(--unrot-bg)",
+                      type === t
+                        ? "var(--unrot-green)"
+                        : "rgba(255,255,255,0.06)",
                     color: type === t ? "#fff" : "var(--unrot-muted)",
-                    border: "1px solid var(--unrot-border)",
+                    border: "1px solid",
+                    borderColor:
+                      type === t
+                        ? "var(--unrot-green)"
+                        : "rgba(255,255,255,0.1)",
                   }}
                 >
                   {label}
@@ -246,9 +316,10 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
                 min="1"
                 className="w-full px-3 py-2.5 rounded-xl text-sm"
                 style={{
-                  background: "var(--unrot-bg)",
-                  border: "1px solid var(--unrot-border)",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.1)",
                   color: "var(--unrot-text)",
+                  outline: "none",
                 }}
               />
             </div>
@@ -270,14 +341,16 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
                 placeholder="What does this task involve?"
                 className="w-full px-3 py-2.5 rounded-xl text-sm"
                 style={{
-                  background: "var(--unrot-bg)",
-                  border: "1px solid var(--unrot-border)",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.1)",
                   color: "var(--unrot-text)",
+                  outline: "none",
                 }}
               />
             </div>
           )}
 
+          {/* Coins */}
           <div>
             <label
               htmlFor="task-coins"
@@ -288,19 +361,22 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
             </label>
             <input
               id="task-coins"
+              data-ocid="tasks.coins.input"
               type="number"
               value={coins}
               onChange={(e) => setCoins(e.target.value)}
               min="1"
               className="w-full px-3 py-2.5 rounded-xl text-sm"
               style={{
-                background: "var(--unrot-bg)",
-                border: "1px solid var(--unrot-border)",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.1)",
                 color: "var(--unrot-text)",
+                outline: "none",
               }}
             />
           </div>
 
+          {/* Repeat */}
           <div>
             <p
               className="text-xs font-semibold uppercase tracking-wide mb-2 block"
@@ -327,9 +403,15 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
                   className="py-2 text-xs rounded-xl font-semibold"
                   style={{
                     background:
-                      repeat === r ? "var(--unrot-green)" : "var(--unrot-bg)",
+                      repeat === r
+                        ? "var(--unrot-green)"
+                        : "rgba(255,255,255,0.06)",
                     color: repeat === r ? "#fff" : "var(--unrot-muted)",
-                    border: "1px solid var(--unrot-border)",
+                    border: "1px solid",
+                    borderColor:
+                      repeat === r
+                        ? "var(--unrot-green)"
+                        : "rgba(255,255,255,0.1)",
                   }}
                 >
                   {label}
@@ -337,53 +419,16 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
               ))}
             </div>
           </div>
-
-          <div
-            className="flex items-center justify-between p-3 rounded-xl"
-            style={{
-              background: "var(--unrot-bg)",
-              border: "1px solid var(--unrot-border)",
-            }}
-          >
-            <div>
-              <p
-                className="text-sm font-semibold"
-                style={{ color: "var(--unrot-text)" }}
-              >
-                High Priority
-              </p>
-              <p className="text-xs" style={{ color: "var(--unrot-muted)" }}>
-                Highlight this task
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                haptic();
-                setPriority(!priority);
-              }}
-              className="relative w-12 h-6 rounded-full transition-all"
-              style={{
-                background: priority
-                  ? "var(--unrot-green)"
-                  : "var(--unrot-border)",
-              }}
-            >
-              <span
-                className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all"
-                style={{ left: priority ? "26px" : "2px" }}
-              />
-            </button>
-          </div>
         </div>
 
         <div className="flex gap-3 mt-6">
           <button
             type="button"
+            data-ocid="tasks.cancel_button"
             onClick={onClose}
             className="flex-1 py-3 rounded-2xl font-semibold text-sm"
             style={{
-              background: "var(--unrot-border)",
+              background: "rgba(255,255,255,0.08)",
               color: "var(--unrot-text)",
             }}
           >
@@ -391,6 +436,7 @@ export default function TaskModal({ actor, task, onClose, onSave }: Props) {
           </button>
           <button
             type="button"
+            data-ocid="tasks.submit_button"
             onClick={save}
             disabled={!title.trim() || saving}
             className="flex-1 py-3 rounded-2xl font-semibold text-sm unrot-btn-green"
