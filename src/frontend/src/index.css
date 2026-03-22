@@ -1,0 +1,198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+    --background: 0.145 0 0;
+    --foreground: 0.985 0 0;
+    --card: 0.205 0 0;
+    --card-foreground: 0.985 0 0;
+    --popover: 0.205 0 0;
+    --popover-foreground: 0.985 0 0;
+    --primary: 0.7 0.18 150;
+    --primary-foreground: 0.985 0 0;
+    --secondary: 0.269 0 0;
+    --secondary-foreground: 0.985 0 0;
+    --muted: 0.269 0 0;
+    --muted-foreground: 0.65 0 0;
+    --accent: 0.269 0 0;
+    --accent-foreground: 0.985 0 0;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 1 0 0 / 10%;
+    --input: 1 0 0 / 15%;
+    --ring: 0.7 0.18 150;
+    --chart-1: 0.646 0.222 41.116;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.398 0.07 227.392;
+    --chart-4: 0.828 0.189 84.429;
+    --chart-5: 0.769 0.188 70.08;
+    --sidebar: 0.205 0 0;
+    --sidebar-foreground: 0.985 0 0;
+    --sidebar-primary: 0.7 0.18 150;
+    --sidebar-primary-foreground: 0.985 0 0;
+    --sidebar-accent: 0.269 0 0;
+    --sidebar-accent-foreground: 0.985 0 0;
+    --sidebar-border: 1 0 0 / 10%;
+    --sidebar-ring: 0.7 0.18 150;
+
+    /* Unrot custom tokens */
+    --unrot-bg: #0b0f14;
+    --unrot-bg2: #141a22;
+    --unrot-card: #1a212b;
+    --unrot-card2: #1d2631;
+    --unrot-border: #2a3442;
+    --unrot-green: #2ecc71;
+    --unrot-green2: #26d07c;
+    --unrot-gold: #f5c84b;
+    --unrot-gold2: #d9a62a;
+    --unrot-text: #f2f5f7;
+    --unrot-muted: #9aa6b2;
+    --unrot-dim: #6f7c8a;
+    --unrot-red: #e06b5a;
+    --unrot-amber: #d9b24c;
+  }
+
+  .light {
+    --background: 0.97 0 0;
+    --foreground: 0.145 0 0;
+    --card: 1 0 0;
+    --card-foreground: 0.145 0 0;
+    --popover: 1 0 0;
+    --popover-foreground: 0.145 0 0;
+    --primary: 0.55 0.18 150;
+    --primary-foreground: 0.985 0 0;
+    --secondary: 0.93 0 0;
+    --secondary-foreground: 0.205 0 0;
+    --muted: 0.93 0 0;
+    --muted-foreground: 0.45 0 0;
+    --accent: 0.93 0 0;
+    --accent-foreground: 0.205 0 0;
+    --border: 0 0 0 / 12%;
+    --input: 0 0 0 / 10%;
+    --unrot-bg: #f0f4f8;
+    --unrot-bg2: #e8edf2;
+    --unrot-card: #ffffff;
+    --unrot-card2: #f8fafc;
+    --unrot-border: #d1dbe6;
+    --unrot-text: #1a2332;
+    --unrot-muted: #5a6a7a;
+    --unrot-dim: #8a9aaa;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    background-color: var(--unrot-bg);
+    color: var(--unrot-text);
+  }
+
+  body {
+    background-color: var(--unrot-bg);
+    color: var(--unrot-text);
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    min-height: 100dvh;
+  }
+}
+
+@layer utilities {
+  .unrot-card {
+    background-color: var(--unrot-card);
+    border: 1px solid var(--unrot-border);
+    border-radius: 14px;
+  }
+
+  .unrot-btn-green {
+    background-color: var(--unrot-green);
+    color: #fff;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+  }
+
+  .unrot-btn-green:hover {
+    background-color: var(--unrot-green2);
+    transform: translateY(-1px);
+  }
+
+  .unrot-btn-green:active {
+    transform: translateY(0);
+    opacity: 0.9;
+  }
+
+  .unrot-btn-green:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .coin-glow {
+    text-shadow: 0 0 30px rgba(245, 200, 75, 0.5);
+  }
+
+  .green-glow {
+    box-shadow: 0 0 60px rgba(46, 204, 113, 0.15), 0 0 120px
+      rgba(46, 204, 113, 0.07);
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes coinPop {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.15);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes pulse-green {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(46, 204, 113, 0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease forwards;
+  }
+  .animate-slide-up {
+    animation: slideUp 0.35s ease forwards;
+  }
+  .animate-coin-pop {
+    animation: coinPop 0.4s ease;
+  }
+  .animate-pulse-green {
+    animation: pulse-green 2s infinite;
+  }
+}
